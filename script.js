@@ -1,24 +1,19 @@
-// ========== HAMBURGER MENU ==========
+// ========== NAVBAR SCROLL ==========
+const navbar = document.getElementById('navbar');
+window.addEventListener('scroll', () => {
+  navbar.classList.toggle('scrolled', window.scrollY > 16);
+}, { passive: true });
+
+// ========== HAMBURGER ==========
 const hamburger = document.getElementById('hamburger');
-const navMobile = document.getElementById('nav-mobile');
+const navMobile  = document.getElementById('nav-mobile');
 
 hamburger.addEventListener('click', () => {
   navMobile.classList.toggle('open');
 });
 
-// Close mobile menu on link click
 navMobile.querySelectorAll('a').forEach(link => {
   link.addEventListener('click', () => navMobile.classList.remove('open'));
-});
-
-// ========== NAVBAR SCROLL EFFECT ==========
-const navbar = document.getElementById('navbar');
-window.addEventListener('scroll', () => {
-  if (window.scrollY > 20) {
-    navbar.style.background = 'rgba(13,17,23,0.97)';
-  } else {
-    navbar.style.background = 'rgba(13,17,23,0.85)';
-  }
 });
 
 // ========== SCROLL REVEAL ==========
@@ -29,17 +24,35 @@ const revealObserver = new IntersectionObserver((entries) => {
       revealObserver.unobserve(entry.target);
     }
   });
-}, { threshold: 0.1 });
+}, { threshold: 0.08 });
 
-document.querySelectorAll('section > .container > *').forEach(el => {
+function observeReveal(el) {
   el.classList.add('reveal');
   revealObserver.observe(el);
+}
+
+// Reveal all direct children of containers
+document.querySelectorAll('section > .container > *').forEach(observeReveal);
+// Also reveal grid children individually
+document.querySelectorAll('.skills-grid > *, .contact-grid > *, .about-stats > *').forEach(observeReveal);
+
+// ========== SMOOTH SCROLL ==========
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+  anchor.addEventListener('click', function (e) {
+    const target = document.querySelector(this.getAttribute('href'));
+    if (target) {
+      e.preventDefault();
+      window.scrollTo({
+        top: target.getBoundingClientRect().top + window.scrollY - 72,
+        behavior: 'smooth'
+      });
+    }
+  });
 });
 
 // ========== GITHUB PROJECTS ==========
 const GITHUB_USER = 'rishab4352';
 
-// Language color map (common languages)
 const LANG_COLORS = {
   'JavaScript':  '#f1e05a',
   'TypeScript':  '#3178c6',
@@ -61,7 +74,7 @@ const LANG_COLORS = {
 };
 
 function getLangColor(lang) {
-  return LANG_COLORS[lang] || '#8b949e';
+  return LANG_COLORS[lang] || '#7a8fa8';
 }
 
 async function fetchProjects() {
@@ -72,17 +85,15 @@ async function fetchProjects() {
       `https://api.github.com/users/${GITHUB_USER}/repos?sort=updated&per_page=50`
     );
 
-    if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
+    if (!res.ok) throw new Error(`GitHub API returned ${res.status}`);
 
     const repos = await res.json();
 
-    // Filter out forks, sort by stars then updated
     const filtered = repos
       .filter(r => !r.fork)
       .sort((a, b) => {
-        if (b.stargazers_count !== a.stargazers_count) {
+        if (b.stargazers_count !== a.stargazers_count)
           return b.stargazers_count - a.stargazers_count;
-        }
         return new Date(b.updated_at) - new Date(a.updated_at);
       })
       .slice(0, 12);
@@ -90,13 +101,14 @@ async function fetchProjects() {
     if (filtered.length === 0) {
       grid.innerHTML = `
         <div class="project-error">
-          <p>No public repositories found yet. <a href="https://github.com/${GITHUB_USER}" target="_blank" rel="noopener">View GitHub profile</a></p>
+          <p>No public repositories found yet.<br>
+          <a href="https://github.com/${GITHUB_USER}" target="_blank" rel="noopener">View profile on GitHub →</a></p>
         </div>`;
       return;
     }
 
     grid.innerHTML = filtered.map(repo => `
-      <a class="project-card reveal" href="${repo.html_url}" target="_blank" rel="noopener" aria-label="${repo.name}">
+      <a class="project-card" href="${repo.html_url}" target="_blank" rel="noopener" aria-label="${repo.name}">
         <div class="project-card-header">
           <span class="project-name">${repo.name}</span>
           <span class="project-link-icon">
@@ -116,7 +128,7 @@ async function fetchProjects() {
             </span>` : '<span></span>'}
           ${repo.stargazers_count > 0 ? `
             <span class="project-stars">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
               </svg>
               ${repo.stargazers_count}
@@ -125,33 +137,20 @@ async function fetchProjects() {
       </a>
     `).join('');
 
-    // Trigger reveal animation on newly added cards
-    grid.querySelectorAll('.reveal').forEach(el => {
-      revealObserver.observe(el);
+    // Observe newly injected project cards
+    grid.querySelectorAll('.project-card').forEach((el, i) => {
+      el.style.transitionDelay = `${i * 0.05}s`;
+      observeReveal(el);
     });
 
   } catch (err) {
     console.error(err);
     grid.innerHTML = `
       <div class="project-error">
-        <p>Could not load repositories right now.
-          <a href="https://github.com/${GITHUB_USER}" target="_blank" rel="noopener">View directly on GitHub →</a>
-        </p>
+        <p>Could not load repositories right now.<br>
+        <a href="https://github.com/${GITHUB_USER}" target="_blank" rel="noopener">View directly on GitHub →</a></p>
       </div>`;
   }
 }
 
 fetchProjects();
-
-// ========== SMOOTH SCROLL FOR ANCHOR LINKS ==========
-document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-  anchor.addEventListener('click', function (e) {
-    const target = document.querySelector(this.getAttribute('href'));
-    if (target) {
-      e.preventDefault();
-      const offset = 70;
-      const top = target.getBoundingClientRect().top + window.scrollY - offset;
-      window.scrollTo({ top, behavior: 'smooth' });
-    }
-  });
-});
